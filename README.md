@@ -182,10 +182,11 @@ python eval/rrf.py --runs runs/bm25_dev.run.tsv runs/ernie_dev.run.tsv --depth 2
 python eval/evaluate.py --qrels data/qrels_dev.tsv --run runs/rrf_dev.run.tsv --baseline runs/ernie_dev.run.tsv
 ```
 
-## 数据与权重（超过 GitHub 100MB 限制，通过 Releases 分发）
+## 数据与权重（超过 GitHub 100MB 限制，不入 git 仓库）
 
-以下文件不入 git 仓库，统一放在本仓库的 **Releases** 页面（组员下载后放到对应位置）：
-打开 https://github.com/&lt;你的GitHub用户名&gt;/literature-search/releases 选择最新 Release 下载。
+以下文件不进 git，由组内 QQ / 网盘直接分发；拿到文件后按下表位置放置即可
+（文件名与脚本默认路径一致，无需改名。若以后想集中管理，也可用 GitHub
+Releases 页面上传，单文件上限 2GB）。
 
 | 文件 | 放置位置 | 大小 | 也可通过 |
 |---|---|---|---|
