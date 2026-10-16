@@ -104,17 +104,21 @@ python eval/rrf.py --runs runs/bm25_dev.run.tsv runs/ernie_dev.run.tsv --depth 2
 python eval/evaluate.py --qrels data/qrels_dev.tsv --run runs/rrf_dev.run.tsv --baseline runs/ernie_dev.run.tsv
 ```
 
-## 数据与权重（超过 GitHub 限制，不入库）
+## 数据与权重（超过 GitHub 100MB 限制，通过 Releases 分发）
 
-| 文件 | 位置 | 获取方式 |
-|---|---|---|
-| 精排训练集 train_pairwise.csv (456MB) | datasets/rank/ | 课程数据包 literature_search_data |
-| 召回权重 (382MB) | weights/recall/model_state.pdparams | 训练生成或网盘下载 |
-| 精排权重 (288MB) | weights/rank/model_state.pdparams | 同上 |
-| HNSW 索引 (528MB) | index/final_index.bin | `build_index.py` 重新生成 |
+以下文件不入 git 仓库，统一放在本仓库的 **Releases** 页面（组员下载后放到对应位置）：
+打开 https://github.com/&lt;你的GitHub用户名&gt;/literature-search/releases 选择最新 Release 下载。
 
-模型底座（ernie-1.0、ernie-3.0-medium-zh）由 PaddleNLP 自动下载；网络受限时设置
-`export HF_ENDPOINT=https://hf-mirror.com` 或使用 bos 离线包。
+| 文件 | 放置位置 | 大小 | 也可通过 |
+|---|---|---|---|
+| train_pairwise.csv | datasets/rank/ | 456MB | 课程数据包 literature_search_data |
+| model_state.pdparams（召回） | weights/recall/ | 382MB | `scripts/train_recall.py` 重新训练 |
+| model_state.pdparams（精排） | weights/rank/ | 288MB | `scripts/train_rank.py` 重新训练 |
+| final_index.bin | index/ | 528MB | `scripts/build_index.py` 重新生成（约数小时，需 GPU） |
+
+> 未下载权重/索引时，可先跑纯数据链路：`build_corpus.py` → `build_qrels.py`；排序训练集
+> 缺失时 `train_rank.py` 需先补数据。模型底座（ernie-1.0、ernie-3.0-medium-zh）由
+> PaddleNLP 自动下载；网络受限时设置 `export HF_ENDPOINT=https://hf-mirror.com`。
 
 ## run 文件格式约定
 
