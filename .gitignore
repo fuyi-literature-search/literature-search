@@ -27,3 +27,4 @@ datasets/rank/train_pairwise.csv
 *.zip
 *.tmp
 Thumbs.db
+上传到GitHub.bat
