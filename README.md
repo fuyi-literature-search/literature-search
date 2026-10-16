@@ -76,8 +76,8 @@ python scripts/build_qrels.py
 # 1) 训练召回模型(已有 weights/recall 可跳过)
 python scripts/train_recall.py --device gpu --save-steps 100
 
-# 2) 构建向量索引(已有 index/ 可跳过)
-python scripts/build_index.py --weights weights/recall/model_state.pdparams --device gpu
+# 2) 构建向量索引(已有 index/ 可跳过; 不传 --weights 时自动用默认权重路径)
+python scripts/build_index.py --device gpu
 
 # 3) 批量召回 -> run 文件
 python scripts/run_recall.py --topk 200            # 先加 --limit 200 快速验证
