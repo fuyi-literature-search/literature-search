@@ -3,7 +3,7 @@
 
 用法:
     python scripts/predict_rank.py
-    python scripts/predict_rank.py --weights weights/rank/model_400/model_state.pdparams
+    python scripts/predict_rank.py --weights weights/rank/rank_model_state.pdparams
 """
 import argparse
 import os
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--test", default=os.path.join(ROOT, "datasets", "rank", "test_pairwise.csv"))
     ap.add_argument("--base-model", default="ernie-3.0-medium-zh")
-    ap.add_argument("--weights", default=os.path.join(ROOT, "weights", "rank", "model_state.pdparams"))
+    ap.add_argument("--weights", default=os.path.join(ROOT, "weights", "rank", "rank_model_state.pdparams"))
     ap.add_argument("--device", default="cpu", choices=["cpu", "gpu"])
     ap.add_argument("--max-seq-len", type=int, default=128,
                     help="必须与训练一致")

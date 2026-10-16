@@ -81,7 +81,7 @@ if __name__ == "__main__":
     ap.add_argument("--index-dir", default=os.path.join(ROOT, "index"))
     ap.add_argument("--queries", default=os.path.join(ROOT, "datasets", "recall", "dev.csv"))
     ap.add_argument("--base-model", default="ernie-1.0")
-    ap.add_argument("--weights", default=os.path.join(ROOT, "weights", "recall", "model_state.pdparams"))
+    ap.add_argument("--weights", default=os.path.join(ROOT, "weights", "recall", "recall_model_state.pdparams"))
     ap.add_argument("--device", default="cpu", choices=["cpu", "gpu"])
     ap.add_argument("--output-emb-size", type=int, default=256)
     ap.add_argument("--max-seq-len", type=int, default=60)

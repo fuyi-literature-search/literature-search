@@ -112,8 +112,8 @@ python eval/evaluate.py --qrels data/qrels_dev.tsv --run runs/rrf_dev.run.tsv --
 | 文件 | 放置位置 | 大小 | 也可通过 |
 |---|---|---|---|
 | train_pairwise.csv | datasets/rank/ | 456MB | 课程数据包 literature_search_data |
-| model_state.pdparams（召回） | weights/recall/ | 382MB | `scripts/train_recall.py` 重新训练 |
-| model_state.pdparams（精排） | weights/rank/ | 288MB | `scripts/train_rank.py` 重新训练 |
+| recall_model_state.pdparams（召回权重） | weights/recall/ | 382MB | `scripts/train_recall.py` 重新训练 |
+| rank_model_state.pdparams（精排权重） | weights/rank/ | 288MB | `scripts/train_rank.py` 重新训练 |
 | final_index.bin | index/ | 528MB | `scripts/build_index.py` 重新生成（约数小时，需 GPU） |
 
 > 未下载权重/索引时，可先跑纯数据链路：`build_corpus.py` → `build_qrels.py`；排序训练集
