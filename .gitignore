@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# 大文件: 模型权重 / 向量索引(通过网盘或 Git LFS 分发, 见 README)
+weights/
+index/
+
+# 派生数据(可由 scripts 重新生成)
+data/
+
+# run 文件体积大; 指标 JSON 保留
+runs/*.tsv
+
+# 超过 GitHub 100MB 限制的大训练集
+datasets/rank/train_pairwise.csv
+
+# 归档与临时文件
+*.zip
+*.tmp
+Thumbs.db

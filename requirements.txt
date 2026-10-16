@@ -1,0 +1,6 @@
+# PaddlePaddle CPU 版(GPU 版参考 https://www.paddlepaddle.org.cn/install/quick?docurl=zh )
+# 注意: 本项目基于 PaddleNLP 2.x API 开发; PaddleNLP 3.x 有较大 API 变更, 安装时请指定 2.x
+paddlepaddle==2.6.1
+paddlenlp==2.6.1
+hnswlib>=0.7.0
+numpy<2.0
