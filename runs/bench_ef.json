@@ -1,0 +1,26 @@
+{
+  "k": 200,
+  "n_queries": 500,
+  "results": {
+    "1000": {
+      "ms_per_query": 0.26,
+      "top200_overlap_vs_ef1000": 1.0
+    },
+    "50": {
+      "ms_per_query": 0.07,
+      "top200_overlap_vs_ef1000": 0.9845
+    },
+    "100": {
+      "ms_per_query": 0.08,
+      "top200_overlap_vs_ef1000": 0.9845
+    },
+    "200": {
+      "ms_per_query": 0.08,
+      "top200_overlap_vs_ef1000": 0.9845
+    },
+    "400": {
+      "ms_per_query": 0.13,
+      "top200_overlap_vs_ef1000": 0.9961
+    }
+  }
+}

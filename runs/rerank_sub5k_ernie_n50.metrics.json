@@ -1,0 +1,12 @@
+{
+  "run": "runs/rerank_sub5k_ernie.run.tsv",
+  "aggregate": {
+    "n_queries": 5000,
+    "recall@1": 0.6491,
+    "recall@5": 0.7742,
+    "recall@10": 0.8108,
+    "hit@10": 0.8108,
+    "mrr@10": 0.7031061111111114,
+    "ndcg@10": 0.7291456233227165
+  }
+}

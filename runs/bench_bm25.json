@@ -1,0 +1,27 @@
+{
+  "stage": "bm25",
+  "topk": 50,
+  "threads": 1,
+  "index_build_s": 69.7,
+  "peak_rss_mb": 337.3,
+  "n_docs": 292173,
+  "avgdl": 17.3,
+  "vocab": 141182,
+  "k1": 1.5,
+  "b": 0.75,
+  "query_latency": {
+    "mean_ms": 16.46,
+    "p50_ms": 7.65,
+    "p95_ms": 42.26,
+    "p99_ms": 56.01,
+    "qps": 60.8,
+    "n": 500
+  },
+  "env": {
+    "python": "3.10.22",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "device": "cpu",
+    "paddle": "2.6.1"
+  }
+}

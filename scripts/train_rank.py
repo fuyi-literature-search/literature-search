@@ -43,6 +43,12 @@ def evaluate(model, metric, data_loader):
 
 def main(args):
     paddle.set_device(args.device)
+    # 固定随机种子(开题报告要求记录), 保证训练可复现
+    import random
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    paddle.seed(args.seed)
+    print("seed:", args.seed)
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
     pretrained = AutoModel.from_pretrained(args.base_model)
 
@@ -122,4 +128,5 @@ if __name__ == "__main__":
     ap.add_argument("--eval-steps", type=int, default=100)
     ap.add_argument("--log-steps", type=int, default=10)
     ap.add_argument("--save-dir", default=os.path.join(ROOT, "weights", "rank"))
+    ap.add_argument("--seed", type=int, default=42, help="随机种子, 训练日志会记录")
     main(ap.parse_args())

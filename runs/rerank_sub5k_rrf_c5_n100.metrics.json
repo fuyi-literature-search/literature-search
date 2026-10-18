@@ -1,0 +1,12 @@
+{
+  "run": "runs/rerank_sub5k_rrf_c5.run.tsv",
+  "aggregate": {
+    "n_queries": 5000,
+    "recall@1": 0.6431,
+    "recall@5": 0.7854,
+    "recall@10": 0.8352,
+    "hit@10": 0.8352,
+    "mrr@10": 0.705095000000001,
+    "ndcg@10": 0.7363645950044037
+  }
+}

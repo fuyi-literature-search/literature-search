@@ -70,15 +70,18 @@ def main():
     ap.add_argument("--qrels", required=True)
     ap.add_argument("--run", required=True)
     ap.add_argument("--baseline", default=None, help="可选, 对照 run, 输出配对差值与置信区间")
+    ap.add_argument("--topk", type=int, default=0,
+                    help="每查询只取分数最高的前 topk 条再评估(0=全部); 精排 N=50/100/200 对照用")
     ap.add_argument("--recall-ks", type=int, nargs="+", default=[50, 100, 200])
     ap.add_argument("--mrr-k", type=int, default=10)
     ap.add_argument("--hit-k", type=int, default=10)
     ap.add_argument("--ndcg-k", type=int, default=10)
     ap.add_argument("--out", default=None, help="可选, 结果另存为 JSON")
+    ap.add_argument("--note", default=None, help="可选, 写入 JSON 的口径/配置说明")
     args = ap.parse_args()
 
     qrels = load_qrels(args.qrels)
-    run = load_run(args.run)
+    run = load_run(args.run, topk=args.topk or None)
 
     agg, per_query = evaluate_run(
         run, qrels, ks=tuple(args.recall_ks), mrr_k=args.mrr_k,
@@ -94,9 +97,11 @@ def main():
         print("{:>12}: {:.4f}".format(name, agg[name]))
 
     result = {"run": args.run, "aggregate": agg}
+    if args.note:
+        result["note"] = args.note
 
     if args.baseline:
-        base = load_run(args.baseline)
+        base = load_run(args.baseline, topk=args.topk or None)
         agg_b, per_base = evaluate_run(
             base, qrels, ks=tuple(args.recall_ks), mrr_k=args.mrr_k,
             hit_k=args.hit_k, ndcg_k=args.ndcg_k)

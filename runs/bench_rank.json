@@ -1,0 +1,18 @@
+{
+  "stage": "rerank",
+  "batch_size": 64,
+  "topk_per_query": 50,
+  "n_pairs": 2500,
+  "total_s": 9.6,
+  "pairs_per_s": 259.4,
+  "ms_per_pair": 3.86,
+  "peak_rss_mb": 1046.0,
+  "env": {
+    "python": "3.10.22",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "device": "gpu",
+    "paddle": "2.6.1",
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU"
+  }
+}

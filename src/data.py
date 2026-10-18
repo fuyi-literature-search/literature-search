@@ -54,22 +54,8 @@ def read_rank_labeled(data_path):
             yield {"query": parts[0], "title": parts[1], "label": parts[2]}
 
 
-def read_queries(data_path):
-    """批量召回: 取每行第一列作为查询。"""
-    queries = []
-    with open(data_path, "r", encoding="utf-8") as f:
-        for line in f:
-            q = line.rstrip("\n").split("\t")[0]
-            if q.strip():
-                queries.append({"query": q})
-    # 去重且保持原顺序(重复查询只需召回一次)
-    seen = set()
-    unique = []
-    for item in queries:
-        if item["query"] not in seen:
-            seen.add(item["query"])
-            unique.append(item)
-    return unique
+# read_queries 定义在无框架依赖的 src/utils.py, 供 BM25 等纯 CPU 脚本复用
+from src.utils import read_queries  # noqa: F401  (再导出, 保持 from src.data import read_queries 兼容)
 
 
 # ---------------------------------------------------------------- 转换器

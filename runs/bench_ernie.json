@@ -1,0 +1,23 @@
+{
+  "stage": "ernie_recall",
+  "topk": 50,
+  "ef": 100,
+  "mode": "single_query_e2e",
+  "query_latency": {
+    "mean_ms": 17.42,
+    "p50_ms": 14.38,
+    "p95_ms": 21.36,
+    "p99_ms": 25.52,
+    "qps": 57.4,
+    "n": 200
+  },
+  "peak_rss_mb": 1646.8,
+  "env": {
+    "python": "3.10.22",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "device": "gpu",
+    "paddle": "2.6.1",
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU"
+  }
+}

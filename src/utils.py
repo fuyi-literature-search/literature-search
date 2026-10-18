@@ -19,6 +19,23 @@ def doc_id_of(norm_text):
     return hashlib.sha1(norm_text.encode("utf-8")).hexdigest()[:16]
 
 
+def read_queries(data_path):
+    """批量召回: 取每行第一列作为查询(去重且保持原顺序)。"""
+    queries = []
+    with open(data_path, "r", encoding="utf-8") as f:
+        for line in f:
+            q = line.rstrip("\n").split("\t")[0]
+            if q.strip():
+                queries.append({"query": q})
+    seen = set()
+    unique = []
+    for item in queries:
+        if item["query"] not in seen:
+            seen.add(item["query"])
+            unique.append(item)
+    return unique
+
+
 def load_corpus(path):
     """加载语料, 返回 (doc_ids, texts)。
 
