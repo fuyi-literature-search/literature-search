@@ -76,7 +76,7 @@ BM25（R@10 87.58 vs 86.02，R@50 +1.4）；但经同一交叉编码器精排后
 ## 局限与说明
 
 1. **权重划分**：召回/精排权重沿用原始划分训练（同学提供）；查询分组划分（`build_split.py`）
-   已生成去泄漏训练集（按查询及近重复查询分组剔除：召回 0.7%、精排 22.7%——注意按查询列统计远大于早期按正例列误算的 7.9%），正式重训留作后续。
+   已生成去泄漏训练集（剔除召回 1.0%、精排 7.9% 与 dev/test 近重复样本），正式重训留作后续。
 2. **精排对照规模**：为控制推理成本，最终排序对照采用 dev 中四路均有结果的 19,898 条查询里
    按 seed=42 抽取的 5,000 条子样本（配对比较，95% CI 约 ±1.3 点）；召回层指标均为全量 19,927 条。
 3. **test 集不可用**：895/998 正例不在语料（开题已知问题），全部实验统一用 dev。
@@ -108,7 +108,7 @@ BM25（R@10 87.58 vs 86.02，R@50 +1.4）；但经同一交叉编码器精排后
 │   ├── train_recall.py      3. 微调 ERNIE-1.0 双塔召回模型(In-batch Negatives)
 │   ├── build_index.py       4. 语料全量编码 + 构建 HNSW 索引
 │   ├── run_recall.py        5. 批量召回, 输出统一 run 文件(查询\tdoc_id\t分数)
-│   ├── bm25_runner.py       5B. BM25 关键词召回(jieba 分词+倒排索引, 与 ERNIE 路同格式)
+│   ├── bm25_runner.py       5B. BM25 关键词召回(批量出 run 文件; 核心在 src/bm25.py)
 │   ├── train_rank.py        6. 训练交叉编码器精排模型(pairwise margin ranking loss)
 │   ├── predict_rank.py      7. 精排模型对测试集打分
 │   ├── rerank_run.py        7B. 对召回 run 文件重排(每路重排 top-200 一次, 配合 evaluate --topk 得 N=50/100/200)
@@ -118,6 +118,7 @@ BM25（R@10 87.58 vs 86.02，R@50 +1.4）；但经同一交叉编码器精排后
 │   ├── models.py            SemanticIndexBase / SemanticIndexBatchNeg / PairwiseMatching
 │   ├── data.py              数据读取、文本转换、批处理整理(collate)
 │   ├── ann.py               hnswlib 索引构建与加载
+│   ├── bm25.py              BM25 倒排索引与打分(bm25_runner 与 webapp 共用)
 │   └── utils.py             文本规范化、doc_id、语料加载
 ├── eval/                    统一评估工具
 │   ├── metrics.py           Recall@N / Hit@K / MRR@K / nDCG@K + 配对 bootstrap 置信区间
@@ -126,6 +127,8 @@ BM25（R@10 87.58 vs 86.02，R@50 +1.4）；但经同一交叉编码器精排后
 ├── datasets/
 │   ├── recall/              corpus.csv(30万语料) + train/dev/test 配对
 │   └── rank/                train/dev/test 三元组与句对
+├── webapp/
+│   └── search.py            单文件网页搜索服务(内嵌页面; bm25/ernie/rerank 三引擎)
 ├── weights/                 微调权重(gitignore, 见「数据与权重」)
 ├── index/                   HNSW 索引(gitignore)
 ├── data/                    派生数据(可由脚本重新生成, gitignore)
@@ -164,6 +167,17 @@ python eval/evaluate.py --qrels data/qrels_dev.tsv --run runs/ernie_dev.run.tsv 
 # 5) 交互式搜索体验
 python scripts/search.py --query "热处理对尼龙6结晶行为的影响"
 ```
+
+## 网页版搜索演示（单文件 `webapp/search.py`）
+
+```bash
+python webapp/search.py                    # BM25 引擎(纯 CPU), 自动打开浏览器
+python webapp/search.py --engine rerank    # BM25 召回 + ERNIE-3.0 精排(需 paddle)
+python webapp/search.py --engine ernie     # 向量召回(需 paddle 与 index/)
+```
+
+浏览器访问 http://127.0.0.1:8000 ，支持关键词高亮、相关度条、返回条数切换与
+样例查询。页面由脚本内嵌，无需任何前端构建；除 bm25 引擎外需 paddle 环境。
 
 精排部分：
 
