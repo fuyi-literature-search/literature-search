@@ -14,6 +14,7 @@
 依赖: bm25 引擎仅需 jieba+numpy; ernie/rerank 另需 paddlepaddle+paddlenlp。
 """
 import argparse
+import importlib.util
 import json
 import os
 import sys
@@ -103,6 +104,7 @@ EMBEDDED_HTML = r"""<!DOCTYPE html>
     <option value="20">前 20 条</option>
     <option value="50">前 50 条</option>
   </select>
+  <select id="engine" title="检索引擎" style="display:none"></select>
 </div>
 
 <div class="hero" id="hero">
@@ -124,11 +126,24 @@ const SAMPLES = [
 ];
 
 const $ = id => document.getElementById(id);
+let defaultEngine = "bm25";
 
 fetch("/api/health").then(r => r.json()).then(h => {
+  defaultEngine = h.default || "bm25";
+  const cur = (h.engines || []).find(e => e.id === defaultEngine) || {};
   $("foot").innerHTML =
-    "引擎：<b>" + h.label + "</b> ｜ 语料 " + h.docs.toLocaleString() +
+    "引擎：<b>" + (cur.label || h.engine) + "</b> ｜ 语料 " + h.docs.toLocaleString() +
     " 篇（加载 " + h.load_seconds + "s）｜ <a href='https://github.com/fuyi-literature-search/literature-search' target='_blank'>GitHub 仓库</a>";
+  const sel = $("engine");
+  (h.engines || []).forEach(e => {
+    const o = document.createElement("option");
+    o.value = e.id;
+    o.textContent = e.label + (e.available ? "" : "（" + e.reason + "）");
+    if (!e.available) o.disabled = true;
+    if (e.id === defaultEngine) o.selected = true;
+    sel.appendChild(o);
+  });
+  if ((h.engines || []).filter(e => e.available).length > 1) sel.style.display = "inline-block";
 }).catch(() => {
   $("foot").textContent = "无法连接搜索服务, 请确认 search.py 正在运行";
 });
@@ -161,7 +176,8 @@ async function doSearch() {
   $("output").style.display = "block";
   $("output").innerHTML = "<div class='empty'>检索中…</div>";
 
-  const url = "/api/search?q=" + encodeURIComponent(q) + "&topk=" + $("topk").value;
+  const url = "/api/search?q=" + encodeURIComponent(q) + "&topk=" + $("topk").value +
+      "&engine=" + encodeURIComponent($("engine").value || defaultEngine);
   try {
     const r = await fetch(url);
     const data = await r.json();
@@ -352,9 +368,86 @@ class RerankEngine(object):
         return results, round((time.time() - t0) * 1000, 1)
 
 
+# ================================================================ 引擎管理
+class EngineManager(object):
+    """引擎注册表: 懒加载 + 可用性检查, 供网页端在线切换。"""
+
+    LABELS = {
+        "bm25": "BM25 关键词召回",
+        "ernie": "ERNIE 向量召回",
+        "rerank": "BM25 召回 + ERNIE-3.0 精排",
+    }
+
+    def __init__(self, args):
+        self.args = args
+        self.default = args.engine
+        self._loaded = {}
+        self._lock = threading.Lock()
+        self.factories = {"bm25": Bm25Engine, "ernie": ErnieEngine, "rerank": RerankEngine}
+
+    @staticmethod
+    def _paddle_ok():
+        return (importlib.util.find_spec("paddle") is not None
+                and importlib.util.find_spec("paddlenlp") is not None)
+
+    def _args_for(self, name):
+        a = argparse.Namespace(**vars(self.args))
+        if name == "ernie":
+            # 现有 index 基于原始 30 万语料行序, 必须配套原始语料文件
+            a.corpus = os.path.join(ROOT, "datasets", "recall", "corpus.csv")
+        return a
+
+    def check(self, name):
+        """返回 (是否可用, 不可用原因)。"""
+        a = self.args
+        if name == "bm25":
+            if not os.path.isfile(a.corpus):
+                return False, "缺少语料 data/corpus_clean.tsv, 先运行 scripts/build_corpus.py"
+        elif name == "ernie":
+            if not self._paddle_ok():
+                return False, "本机未安装 paddlepaddle / paddlenlp"
+            if not os.path.isfile(os.path.join(a.index_dir, "final_index.bin")):
+                return False, "缺少向量索引 index/final_index.bin, 先运行 scripts/build_index.py"
+        elif name == "rerank":
+            if not self._paddle_ok():
+                return False, "本机未安装 paddlepaddle / paddlenlp"
+            if not os.path.isfile(a.rank_weights):
+                return False, "缺少精排权重 weights/rank/rank_model_state.pdparams"
+            if not os.path.isfile(a.corpus):
+                return False, "缺少语料 data/corpus_clean.tsv"
+        else:
+            return False, "未知引擎"
+        return True, ""
+
+    def describe(self):
+        out = []
+        for name in ("bm25", "ernie", "rerank"):
+            ok, reason = self.check(name)
+            out.append({"id": name, "label": self.LABELS[name],
+                        "available": ok, "loaded": name in self._loaded,
+                        "reason": reason})
+        return out
+
+    def get(self, name):
+        with self._lock:
+            if name in self._loaded:
+                return self._loaded[name]
+            ok, reason = self.check(name)
+            if not ok:
+                raise RuntimeError(reason)
+            print("懒加载引擎 {} ...".format(name), flush=True)
+            eng = self.factories[name](self._args_for(name))
+            self._loaded[name] = eng
+            print("引擎 {} 就绪".format(name), flush=True)
+            return eng
+
+    def default_engine(self):
+        return self.get(self.default)
+
+
 # ================================================================ HTTP 服务
 class Handler(BaseHTTPRequestHandler):
-    engine = None       # 由 main() 注入
+    manager = None       # 由 main() 注入
     page_html = EMBEDDED_HTML
 
     def _send(self, code, content_type, body):
@@ -370,11 +463,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "text/html; charset=utf-8",
                        Handler.page_html.encode("utf-8"))
         elif parsed.path == "/api/health":
+            eng = self.manager.default_engine()
             info = {
-                "engine": self.engine.name,
-                "label": self.engine.label,
-                "docs": self.engine.total_docs,
-                "load_seconds": round(getattr(self.engine, "load_seconds", 0.0), 1),
+                "engine": eng.name,
+                "default": self.manager.default,
+                "docs": eng.total_docs,
+                "load_seconds": round(getattr(eng, "load_seconds", 0.0), 1),
+                "engines": self.manager.describe(),
             }
             self._send(200, "application/json; charset=utf-8",
                        json.dumps(info, ensure_ascii=False).encode("utf-8"))
@@ -389,12 +484,19 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8",
                            json.dumps({"error": "empty query"}).encode("utf-8"))
                 return
+            engine_name = (qs.get("engine") or [self.manager.default])[0]
             try:
-                results, elapsed_ms = self.engine.search(query, topk)
+                engine = self.manager.get(engine_name)
+            except RuntimeError as exc:
+                self._send(503, "application/json; charset=utf-8",
+                           json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
+                return
+            try:
+                results, elapsed_ms = engine.search(query, topk)
                 body = json.dumps({
-                    "query": query, "engine": self.engine.name,
-                    "label": self.engine.label, "elapsed_ms": elapsed_ms,
-                    "total_docs": self.engine.total_docs,
+                    "query": query, "engine": engine.name,
+                    "label": engine.label, "elapsed_ms": elapsed_ms,
+                    "total_docs": engine.total_docs,
                     "results": results,
                 }, ensure_ascii=False).encode("utf-8")
                 self._send(200, "application/json; charset=utf-8", body)
@@ -409,13 +511,16 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main(args):
-    engines = {"bm25": Bm25Engine, "ernie": ErnieEngine, "rerank": RerankEngine}
-    if args.engine not in engines:
-        sys.exit("未知引擎: {} (可选: bm25/ernie/rerank)".format(args.engine))
-    print("加载引擎 {} ...".format(args.engine), flush=True)
-    Handler.engine = engines[args.engine](args)
+    Handler.manager = EngineManager(args)
+    print("预加载默认引擎 {} ...".format(args.engine), flush=True)
+    try:
+        eng = Handler.manager.get(args.engine)
+    except RuntimeError as exc:
+        sys.exit("默认引擎启动失败: {}".format(exc))
     print("引擎就绪: {} (加载耗时 {:.1f}s)".format(
-        Handler.engine.label, getattr(Handler.engine, "load_seconds", 0.0)), flush=True)
+        eng.label, getattr(eng, "load_seconds", 0.0)), flush=True)
+    for e in Handler.manager.describe():
+        print("  - {:<7} {}".format(e["id"], "可用" if e["available"] else "不可用: " + e["reason"]))
 
     url = "http://{}:{}".format(args.host, args.port)
     server = ThreadingHTTPServer((args.host, args.port), Handler)
