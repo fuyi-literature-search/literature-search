@@ -436,7 +436,13 @@ class EngineManager(object):
             if not ok:
                 raise RuntimeError(reason)
             print("懒加载引擎 {} ...".format(name), flush=True)
-            eng = self.factories[name](self._args_for(name))
+            try:
+                eng = self.factories[name](self._args_for(name))
+            except Exception as exc:
+                import traceback
+                traceback.print_exc()
+                print("引擎 {} 加载失败: {}".format(name, exc), flush=True)
+                raise RuntimeError("引擎加载失败: {}".format(exc)) from exc
             self._loaded[name] = eng
             print("引擎 {} 就绪".format(name), flush=True)
             return eng
@@ -458,7 +464,21 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        parsed = urlparse(self.path)
+        try:
+            self._route(urlparse(self.path))
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # 客户端已断开
+        except Exception as exc:  # 任何未预期异常都返回可读 JSON, 不让连接裸断
+            import traceback
+            traceback.print_exc()
+            try:
+                self._send(500, "application/json; charset=utf-8",
+                           json.dumps({"error": "服务器内部错误: {}".format(exc)},
+                                      ensure_ascii=False).encode("utf-8"))
+            except Exception:
+                pass
+
+    def _route(self, parsed):
         if parsed.path in ("/", "/index.html"):
             self._send(200, "text/html; charset=utf-8",
                        Handler.page_html.encode("utf-8"))
