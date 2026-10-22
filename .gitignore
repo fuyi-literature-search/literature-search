@@ -13,6 +13,8 @@ venv/
 # 大文件: 模型权重 / 向量索引(通过网盘或 Git LFS 分发, 见 README)
 weights/
 index/
+index_finetuned_clean/
+index_zeroshot/
 
 # 派生数据(可由 scripts 重新生成)
 data/
