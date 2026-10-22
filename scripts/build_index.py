@@ -27,7 +27,7 @@ from paddlenlp.transformers import AutoModel, AutoTokenizer
 
 from src.models import SemanticIndexBase
 from src.data import convert_bi_example, make_batchify, create_dataloader
-from src.ann import build_index
+from src.ann import build_index, save_index
 from src.utils import load_corpus
 
 
@@ -57,7 +57,7 @@ def main(args):
 
     os.makedirs(args.index_dir, exist_ok=True)
     index_path = os.path.join(args.index_dir, "final_index.bin")
-    index.save_index(index_path)
+    save_index(index, index_path)
     with open(os.path.join(args.index_dir, "doc_ids.json"), "w", encoding="utf-8") as f:
         json.dump(doc_ids, f, ensure_ascii=False)
     print("written:", index_path)

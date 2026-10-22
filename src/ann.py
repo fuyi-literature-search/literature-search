@@ -1,8 +1,27 @@
 # -*- coding: utf-8 -*-
 """hnswlib 向量索引的构建与加载。"""
+import os
+
 import numpy as np
 
 from paddlenlp.utils.log import logger
+
+
+def _hnsw_call(method, path):
+    """Windows 下 hnswlib 的 C++ fopen 打不开含非 ASCII 字符的路径(如中文目录)。
+    兜底: 临时切换到目标目录, 仅用纯 ASCII 文件名调用。
+    只在加载/构建时一次性执行, chdir 不与检索并发。"""
+    if os.name == "nt" and not path.isascii():
+        name = os.path.basename(path)
+        if not name.isascii():
+            raise RuntimeError("hnswlib 无法打开含非 ASCII 文件名的路径: {}".format(path))
+        cwd = os.getcwd()
+        try:
+            os.chdir(os.path.dirname(os.path.abspath(path)))
+            return method(name)
+        finally:
+            os.chdir(cwd)
+    return method(path)
 
 
 def build_index(dim, data_loader, model, ef_construction=100, m=100, max_elements=1_000_000, threads=16):
@@ -32,6 +51,11 @@ def load_index(path, dim, ef=100):
     import hnswlib
 
     index = hnswlib.Index(space="ip", dim=dim)
-    index.load_index(path)
+    _hnsw_call(index.load_index, path)
     index.set_ef(ef)
     return index
+
+
+def save_index(index, path):
+    """保存索引; Windows 中文路径的兜底与 load_index 相同。"""
+    _hnsw_call(index.save_index, path)

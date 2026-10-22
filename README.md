@@ -176,7 +176,7 @@ python webapp/search.py --engine rerank    # BM25 召回 + ERNIE-3.0 精排(需 
 python webapp/search.py --engine ernie     # 向量召回(需 paddle 与 index/)
 ```
 
-浏览器访问 http://127.0.0.1:8000 ，支持关键词高亮、相关度条、返回条数切换与
+浏览器访问 http://127.0.0.1:8000 ，支持关键词高亮、相关度条、返回条数/引擎切换与
 样例查询。页面由脚本内嵌，无需任何前端构建；除 bm25 引擎外需 paddle 环境。
 
 精排部分：
