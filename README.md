@@ -26,6 +26,23 @@ c=20: 86.71/**92.29**；c=60: 84.41/92.24；c=120: 83.32/91.64；c=300: 82.81/91
 两路互补性（Recall@200，`scripts/union_coverage.py`）：BM25 93.61 / ERNIE 87.00 / 并集 95.54 /
 RRF(c=60) 94.80 —— 互补上限 +1.93，RRF 兑现 +1.19，截断损失 0.75。
 
+五路召回对照（`tfidf_runner.py` / `bm25_prf.py` / `build_index.py --weights ""` 零训练臂，
+`summarize_recall.py` 汇总；完整表含配对 bootstrap 置信区间，见 `runs/recall_comparison.md`）：
+
+| 召回路 | Hit@10 | MRR@10 | nDCG@10 | R@200 |
+|---|---|---|---|---|
+| TF-IDF（与 BM25 同分词） | 82.68 | 71.18 | 73.95 | 92.97 |
+| **BM25** | **86.02** | **76.28** | **78.65** | **93.61** |
+| BM25+PRF（反馈10篇/扩展10词） | 79.94 | 48.19 | 55.85 | 92.08 |
+| ERNIE 零训练底座 | 0.00 | 0.00 | 0.00 | 0.10 |
+| ERNIE 微调双塔（即上表基线复测） | 73.89 | 63.25 | 65.80 | 86.92 |
+
+三条结论（均经配对 bootstrap 检验显著）：① BM25 的词频饱和与文档长度归一化打分相对朴素
+TF-IDF 全面占优（MRR@10 +5.11）；② 本场景查询即文献标题、正例为精确匹配，朴素 PRF 的
+扩展词反而把精确匹配挤出前排（MRR@10 −28.09），查询扩展在此类语料上不适用；③ 预训练
+底座不微调直接编码，检索能力接近随机（R@200 与 29.2 万篇随机取 200 篇的命中期望同量级），
+对比学习微调是检索能力的唯一来源——这是本项目训练环节价值的直接量化。
+
 ## 检索效率（`scripts/benchmark_latency.py`，Intel 12 代 + RTX 3060 Laptop）
 
 | 阶段 | 构建/加载 | 延迟 P50 / P95 | 吞吐 | 峰值内存 |
@@ -109,6 +126,9 @@ BM25（R@10 87.58 vs 86.02，R@50 +1.4）；但经同一交叉编码器精排后
 │   ├── build_index.py       4. 语料全量编码 + 构建 HNSW 索引
 │   ├── run_recall.py        5. 批量召回, 输出统一 run 文件(查询\tdoc_id\t分数)
 │   ├── bm25_runner.py       5B. BM25 关键词召回(批量出 run 文件; 核心在 src/bm25.py)
+│   ├── tfidf_runner.py      5C. TF-IDF 词法对照基线(同分词规则, 批量出 run 文件)
+│   ├── bm25_prf.py          5D. BM25+伪相关反馈(PRF)对照路(两轮检索+查询扩展)
+│   ├── summarize_recall.py  5E. 五路召回对照实验汇总(生成 runs/recall_comparison.md)
 │   ├── train_rank.py        6. 训练交叉编码器精排模型(pairwise margin ranking loss)
 │   ├── predict_rank.py      7. 精排模型对测试集打分
 │   ├── rerank_run.py        7B. 对召回 run 文件重排(每路重排 top-200 一次, 配合 evaluate --topk 得 N=50/100/200)

@@ -61,15 +61,16 @@ class BM25Index(object):
                 len(doc_ids), len(np_postings), float(doc_len.mean())))
         return cls(doc_ids, doc_len, np_postings, k1=k1, b=b)
 
-    def search(self, query, topk):
+    def search(self, query, topk, extra_tokens=()):
         """返回 [(doc_id, score, tokens)] 按分数降序; 查询词各计一次(标准 BM25 打分)。
 
         tokens 为查询的命中词(用于前端高亮), 与打分用词一致。
+        extra_tokens: 伪相关反馈等场景追加的扩展词, 与查询词同样各计一次。
         """
         k1, b = self.k1, self.b
         norm = k1 * (1.0 - b + b * self.doc_len / max(self.avgdl, 1e-9))
 
-        q_tokens = tokenize(query)
+        q_tokens = tokenize(query) + [t for t in extra_tokens if t]
         idx_parts, score_parts, hit_tokens = [], [], []
         for tok in set(q_tokens):
             entry = self.postings.get(tok)
