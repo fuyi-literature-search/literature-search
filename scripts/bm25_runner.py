@@ -17,14 +17,15 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.bm25 import BM25Index
+from src.bm25 import BM25Index, _TOKENIZERS
 from src.utils import read_queries
 
 
 def main(args):
     t0 = time.time()
-    index = BM25Index.build(args.corpus, k1=args.k1, b=args.b)
-    print("index built in {:.1f}s".format(time.time() - t0))
+    index = BM25Index.build(args.corpus, k1=args.k1, b=args.b,
+                            tokenizer=_TOKENIZERS[args.tokenizer])
+    print("tokenizer: {} | index built in {:.1f}s".format(args.tokenizer, time.time() - t0))
 
     queries = read_queries(args.queries)
     if args.limit:
@@ -58,6 +59,8 @@ if __name__ == "__main__":
                     help="每查询返回条数; 对照实验需要 N=50/100/200, 故默认 200")
     ap.add_argument("--k1", type=float, default=1.5, help="BM25 k1")
     ap.add_argument("--b", type=float, default=0.75, help="BM25 b")
+    ap.add_argument("--tokenizer", default="word", choices=["word", "char"],
+                    help="word=jieba 词级(默认); char=字符二元组(分词消融对照)")
     ap.add_argument("--limit", type=int, default=0, help="只处理前 N 条查询, 0 表示全部")
     ap.add_argument("--output", default=os.path.join(ROOT, "runs", "bm25_dev.run.tsv"))
     main(ap.parse_args())

@@ -24,9 +24,13 @@ from metrics import evaluate_run, paired_bootstrap  # noqa: E402
 ARMS = [
     ("TF-IDF", os.path.join(ROOT, "runs", "tfidf_dev.run.tsv")),
     ("BM25", os.path.join(ROOT, "runs", "bm25_dev.run.tsv")),
+    ("字符bigram BM25", os.path.join(ROOT, "runs", "charbm25_dev.run.tsv")),
+    ("QLM(μ=3000)", os.path.join(ROOT, "runs", "qlm_dev.run.tsv")),
     ("BM25+PRF", os.path.join(ROOT, "runs", "bm25_prf_dev.run.tsv")),
     ("ERNIE 零训练", os.path.join(ROOT, "runs", "ernie_zeroshot_dev.run.tsv")),
     ("ERNIE 微调双塔", os.path.join(ROOT, "runs", "ernie_dev.run.tsv")),
+    ("RRF(BM25+ERNIE)", os.path.join(ROOT, "runs", "rrf2_bm25_ernie_dev.run.tsv")),
+    ("RRF三路(+字符)", os.path.join(ROOT, "runs", "rrf3_dev.run.tsv")),
 ]
 KS = (10, 50, 100, 200)
 
@@ -53,7 +57,7 @@ def main(args):
     baseline = args.baseline if args.baseline in per_qs else "BM25"
     cols = ["hit@10", "mrr@10", "ndcg@10"] + ["recall@{}".format(k) for k in KS]
 
-    lines = ["# 五路召回对照实验(dev, 同一清洗语料 29.2 万, 截断 top-{})".format(args.topk), ""]
+    lines = ["# 召回方法对照实验(dev, 同一清洗语料 29.2 万, 截断 top-{})".format(args.topk), ""]
     lines.append("| 召回路 | " + " | ".join(
         ["Hit@10", "MRR@10", "nDCG@10"] + ["R@{}".format(k) for k in KS]) + " |")
     lines.append("|" + "---|" * (len(cols) + 1))
@@ -80,11 +84,13 @@ def main(args):
             label, cells[0], cells[1], "是" if sig else "否"))
 
     lines += ["", "## 口径说明", "",
-              "- 五路同一清洗语料(29.2 万篇)独立建索引, 同一份 dev qrels, 统一截断 top-200。",
+              "- 各路同一清洗语料(29.2 万篇)独立建索引, 同一份 dev qrels, 统一截断 top-200。",
               "- 正例多为单一精确标题匹配, R@10 数值上等于 Hit@10。",
-              "- 词法三路(TF-IDF/BM25/PRF)约 30 条查询无命中词不产生任何候选, 计入 n 的差异(<0.2%), 未按 0 分插补。",
+              "- 词法各路(TF-IDF/BM25/字符/QLM/PRF)约 30 条查询无命中词不产生任何候选, 计入 n 的差异(<0.2%), 未按 0 分插补。",
+              "- QLM 平滑强度 μ 在 500 条查询子集上从 {10,50,200,500,1000,3000} 中选定; 短标题语料需远大于常规长文档的平滑。",
               "- ERNIE 零训练 = 底座不微调直接编码(含随机初始化的输出投影层), 其 R@200 与"
-              "29.2 万篇中随机取 200 篇的命中期望同量级, 即检索能力接近随机。"]
+              "29.2 万篇中随机取 200 篇的命中期望同量级, 即检索能力接近随机。",
+              "- RRF 融合 c=5(沿用已调参数), depth=200; 融合臂与单路同口径评测。"]
 
     text = "\n".join(lines) + "\n"
     with open(args.out, "w", encoding="utf-8") as f:

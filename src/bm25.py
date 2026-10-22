@@ -22,14 +22,27 @@ def tokenize(text):
     return [t for t in jieba.lcut(text.lower()) if _TOKEN_RE.match(t)]
 
 
+def tokenize_char_bigram(text):
+    """字符级二元组分词: 去全部空白后取相邻两字, 不依赖词典。
+
+    用于对照实验: 检验词级分词(专业术语被切碎)对召回的影响。
+    """
+    s = re.sub(r"\s+", "", text.lower())
+    return [s[i:i + 2] for i in range(len(s) - 1)]
+
+
+_TOKENIZERS = {"word": tokenize, "char": tokenize_char_bigram}
+
+
 class BM25Index(object):
     """内存倒排索引。postings 用 numpy 数组存 (doc 行号, 词频), 查询向量化打分。"""
 
-    def __init__(self, doc_ids, doc_len, postings, k1=1.5, b=0.75):
+    def __init__(self, doc_ids, doc_len, postings, k1=1.5, b=0.75, tokenizer=None):
         self.doc_ids = doc_ids
         self.doc_len = doc_len                    # np.int32, 每篇 token 数
         self.postings = postings                  # token -> (idx数组, tf数组)
         self.k1, self.b = k1, b
+        self.tokenize = tokenizer or tokenize     # 查询与索引必须同一分词规则
         self.n_docs = len(doc_ids)
         self.avgdl = float(doc_len.mean()) if self.n_docs else 0.0
         # Lucene 式 idf: ln(1 + (N - df + 0.5)/(df + 0.5)), 恒正
@@ -39,27 +52,28 @@ class BM25Index(object):
         }
 
     @classmethod
-    def build(cls, corpus_path, k1=1.5, b=0.75, verbose=True):
+    def build(cls, corpus_path, k1=1.5, b=0.75, verbose=True, tokenizer=None):
         doc_ids, doc_len = [], []
         postings = defaultdict(lambda: ([], []))   # token -> (doc行号列表, tf列表)
+        tok = tokenizer or tokenize
         with open(corpus_path, "r", encoding="utf-8") as f:
             for line in f:
                 parts = line.rstrip("\n").split("\t", 1)
                 if len(parts) != 2 or not parts[1].strip():
                     continue
-                tokens = tokenize(parts[1])
+                tokens = tok(parts[1])
                 doc_ids.append(parts[0])
                 doc_len.append(len(tokens))
-                for tok, tf in Counter(tokens).items():
-                    postings[tok][0].append(len(doc_ids) - 1)
-                    postings[tok][1].append(tf)
+                for term, tf in Counter(tokens).items():
+                    postings[term][0].append(len(doc_ids) - 1)
+                    postings[term][1].append(tf)
         doc_len = np.array(doc_len, dtype=np.int32)
         np_postings = {t: (np.array(li, dtype=np.int32), np.array(lt, dtype=np.float32))
                        for t, (li, lt) in postings.items()}
         if verbose:
             print("docs: {} | vocab: {} | avgdl: {:.1f}".format(
                 len(doc_ids), len(np_postings), float(doc_len.mean())))
-        return cls(doc_ids, doc_len, np_postings, k1=k1, b=b)
+        return cls(doc_ids, doc_len, np_postings, k1=k1, b=b, tokenizer=tok)
 
     def search(self, query, topk, extra_tokens=()):
         """返回 [(doc_id, score, tokens)] 按分数降序; 查询词各计一次(标准 BM25 打分)。
@@ -70,7 +84,7 @@ class BM25Index(object):
         k1, b = self.k1, self.b
         norm = k1 * (1.0 - b + b * self.doc_len / max(self.avgdl, 1e-9))
 
-        q_tokens = tokenize(query) + [t for t in extra_tokens if t]
+        q_tokens = self.tokenize(query) + [t for t in extra_tokens if t]
         idx_parts, score_parts, hit_tokens = [], [], []
         for tok in set(q_tokens):
             entry = self.postings.get(tok)
