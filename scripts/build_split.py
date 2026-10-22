@@ -43,13 +43,15 @@ def grams(text):
 
 def collect_queries(args):
     """扫描全部数据文件, 返回 [(norm_query, role)], 同一查询可多角色。"""
+    # 注意: 所有数据文件的查询都在第 0 列(第 1 列是正例/候选文献)。
+    # 泄漏语义是"查询级"的——dev/test 的查询(而非文献)出现在训练对中才构成泄漏。
     sources = [
-        (os.path.join(args.datasets_dir, "recall", "train.csv"), "recall_train", 1, 0),
-        (os.path.join(args.datasets_dir, "recall", "dev.csv"), "recall_dev", 1, 0),
-        (os.path.join(args.datasets_dir, "recall", "test.csv"), "recall_test", 1, 0),
-        (os.path.join(args.datasets_dir, "rank", "train_pairwise.csv"), "rank_train", 1, 1),
-        (os.path.join(args.datasets_dir, "rank", "dev_pairwise.csv"), "rank_dev", 1, 1),
-        (os.path.join(args.datasets_dir, "rank", "test_pairwise.csv"), "rank_test", 1, 1),
+        (os.path.join(args.datasets_dir, "recall", "train.csv"), "recall_train", 0, 0),
+        (os.path.join(args.datasets_dir, "recall", "dev.csv"), "recall_dev", 0, 0),
+        (os.path.join(args.datasets_dir, "recall", "test.csv"), "recall_test", 0, 0),
+        (os.path.join(args.datasets_dir, "rank", "train_pairwise.csv"), "rank_train", 0, 1),
+        (os.path.join(args.datasets_dir, "rank", "dev_pairwise.csv"), "rank_dev", 0, 1),
+        (os.path.join(args.datasets_dir, "rank", "test_pairwise.csv"), "rank_test", 0, 1),
     ]
     pairs = []
     for path, role, q_col, skip_header in sources:
@@ -190,9 +192,9 @@ def main(args):
     os.makedirs(data_dir, exist_ok=True)
     jobs = [
         (os.path.join(args.datasets_dir, "recall", "train.csv"),
-         "recall_train", data_dir + "/recall_train_clean.tsv", 1, 0),
+         "recall_train", data_dir + "/recall_train_clean.tsv", 0, 0),
         (os.path.join(args.datasets_dir, "rank", "train_pairwise.csv"),
-         "rank_train", data_dir + "/rank_train_clean.tsv", 1, 1),
+         "rank_train", data_dir + "/rank_train_clean.tsv", 0, 1),
     ]
     stats = {}
     for path, role, out_path, q_col, skip_header in jobs:
