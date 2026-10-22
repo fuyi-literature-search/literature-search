@@ -263,7 +263,9 @@ class ErnieEngine(object):
         from src.models import SemanticIndexBase
         from src.ann import load_index
 
-        self.doc_ids, self.doc_texts = load_corpus(args.corpus)
+        doc_ids, doc_texts = load_corpus(args.corpus)
+        self.doc_ids = doc_ids
+        self.doc_texts = dict(zip(doc_ids, doc_texts))
         self.total_docs = len(self.doc_ids)
 
         id_map_path = os.path.join(args.index_dir, "doc_ids.json")
@@ -383,6 +385,7 @@ class EngineManager(object):
         self.default = args.engine
         self._loaded = {}
         self._lock = threading.Lock()
+        self.search_lock = threading.Lock()
         self.factories = {"bm25": Bm25Engine, "ernie": ErnieEngine, "rerank": RerankEngine}
 
     @staticmethod
@@ -435,7 +438,7 @@ class EngineManager(object):
             ok, reason = self.check(name)
             if not ok:
                 raise RuntimeError(reason)
-            print("懒加载引擎 {} ...".format(name), flush=True)
+            print("加载引擎 {} ...".format(name), flush=True)
             try:
                 eng = self.factories[name](self._args_for(name))
             except Exception as exc:
@@ -512,7 +515,9 @@ class Handler(BaseHTTPRequestHandler):
                            json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
                 return
             try:
-                results, elapsed_ms = engine.search(query, topk)
+                # paddle 前向推理非线程安全, 并发请求串行执行
+                with self.manager.search_lock:
+                    results, elapsed_ms = engine.search(query, topk)
                 body = json.dumps({
                     "query": query, "engine": engine.name,
                     "label": engine.label, "elapsed_ms": elapsed_ms,
@@ -532,15 +537,20 @@ class Handler(BaseHTTPRequestHandler):
 
 def main(args):
     Handler.manager = EngineManager(args)
-    print("预加载默认引擎 {} ...".format(args.engine), flush=True)
-    try:
-        eng = Handler.manager.get(args.engine)
-    except RuntimeError as exc:
-        sys.exit("默认引擎启动失败: {}".format(exc))
-    print("引擎就绪: {} (加载耗时 {:.1f}s)".format(
-        eng.label, getattr(eng, "load_seconds", 0.0)), flush=True)
-    for e in Handler.manager.describe():
-        print("  - {:<7} {}".format(e["id"], "可用" if e["available"] else "不可用: " + e["reason"]))
+    # Windows 下 paddle 在工作线程中初始化模型会触发 libpaddle 原生崩溃(0xC0000005),
+    # 因此启动时在主线程预加载全部可用引擎, 请求线程只做前向推理
+    for info in Handler.manager.describe():
+        if not info["available"]:
+            print("  - {:<7} 不可用: {}".format(info["id"], info["reason"]))
+            continue
+        try:
+            eng = Handler.manager.get(info["id"])
+            print("  - {:<7} 就绪 (加载耗时 {:.1f}s)".format(
+                info["id"], getattr(eng, "load_seconds", 0.0)))
+        except RuntimeError as exc:
+            print("  - {:<7} 加载失败: {}".format(info["id"], exc))
+    if args.engine not in Handler.manager._loaded:
+        sys.exit("默认引擎 {} 加载失败".format(args.engine))
 
     url = "http://{}:{}".format(args.host, args.port)
     server = ThreadingHTTPServer((args.host, args.port), Handler)
