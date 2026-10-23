@@ -51,6 +51,18 @@ RRF 融合全面最优**（R@10 89.02 / R@200 95.29 / MRR@10 77.20）——两�
 MRR 被稀释 −2.34，字符路加入后与精确匹配信号一致投票，MRR 转为 +1.02，浅层与深度兼得，
 为当前系统的召回配置。
 
+召回深度分析（`depth_analysis.py`，各路 top-1000 内存内分析，n=19,932；`benchmark_topk.py` 延迟随 topk）：
+
+- **强弱随深度重组**：字符 bigram 各深度均为最优单路；ERNIE 微调落后幅度随深度收窄
+  （R@10 −12.58 → R@1000 −3.93），其末段（500→1000）边际增益 +1.69 为各路最大——语义召回的
+  收益更多出现在候选集后段；RRF 三路各深度均最优，且对三路并集的截断损失随深度收窄
+  （−2.04 → −0.46）。
+- **召回率随深度饱和**：字符路 R@200 94.54 → R@1000 仅 +1.65；互补增益在浅层最大
+  （R@10 并集−最优 = +4.43）并随深度递减（R@1000 +1.04）。
+- **延迟与召回集大小**：召回层对 topk 不敏感（BM25 5.8~13.1ms、ERNIE 编码 10.7ms +
+  HNSW 0.35~2.5ms，k=10→1000 几乎平坦）；时间代价由精排线性承担（3.86 ms/候选 × k：
+  k=200 约 0.78s、k=1000 约 3.9s），且与召回源无关——topk=200 为质量-延迟折中。
+
 ## 检索效率（`scripts/benchmark_latency.py`，Intel 12 代 + RTX 3060 Laptop）
 
 | 阶段 | 构建/加载 | 延迟 P50 / P95 | 吞吐 | 峰值内存 |
@@ -137,12 +149,14 @@ BM25（R@10 87.58 vs 86.02，R@50 +1.4）；但经同一交叉编码器精排后
 │   ├── tfidf_runner.py      5C. TF-IDF 词法对照基线(同分词规则, 批量出 run 文件)
 │   ├── bm25_prf.py          5D. BM25+伪相关反馈(PRF)对照路(两轮检索+查询扩展)
 │   ├── qlm_runner.py        5F. 查询似然模型 QLM 对照路(Dirichlet 平滑, 复用倒排结构)
+│   ├── depth_analysis.py    5G. 召回深度-质量分析(各路 R@10..1000 与并集互补性, 内存内计算)
 │   ├── summarize_recall.py  5E. 召回方法对照实验汇总(生成 runs/recall_comparison.md)
 │   ├──                        (bm25_runner.py --tokenizer char 为字符 bigram 消融臂)
 │   ├── train_rank.py        6. 训练交叉编码器精排模型(pairwise margin ranking loss)
 │   ├── predict_rank.py      7. 精排模型对测试集打分
 │   ├── rerank_run.py        7B. 对召回 run 文件重排(每路重排 top-200 一次, 配合 evaluate --topk 得 N=50/100/200)
 │   ├── benchmark_latency.py 9. 各阶段效率测试(延迟 P50/P95/P99、吞吐、内存与构建耗时)
+│   ├── benchmark_topk.py     9B. 延迟随召回集大小(topk)变化基准(召回层平坦/精排线性)
 │   └── search.py            8. 端到端交互式搜索演示(召回+精排)
 ├── src/                     共享库(所有脚本复用, 无重复实现)
 │   ├── models.py            SemanticIndexBase / SemanticIndexBatchNeg / PairwiseMatching
