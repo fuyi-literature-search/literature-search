@@ -157,6 +157,7 @@ BM25（R@10 87.58 vs 86.02，R@50 +1.4）；但经同一交叉编码器精排后
 │   ├── rerank_run.py        7B. 对召回 run 文件重排(每路重排 top-200 一次, 配合 evaluate --topk 得 N=50/100/200)
 │   ├── benchmark_latency.py 9. 各阶段效率测试(延迟 P50/P95/P99、吞吐、内存与构建耗时)
 │   ├── benchmark_topk.py     9B. 延迟随召回集大小(topk)变化基准(召回层平坦/精排线性)
+│   ├── benchmark_stability.py 9C. 四臂同机延迟稳定性基准(换查询的开销: 分布/长尾倍数/QPS)
 │   └── search.py            8. 端到端交互式搜索演示(召回+精排)
 ├── src/                     共享库(所有脚本复用, 无重复实现)
 │   ├── models.py            SemanticIndexBase / SemanticIndexBatchNeg / PairwiseMatching
